@@ -8,7 +8,7 @@
 
 (function (module) {
 
-    var mysql = require('mysql');
+    var mysql = require('mysql2');
     var mongodb = require('mongodb');
 
     // ----------------------------------------------------------------------------------------------//
@@ -34,7 +34,8 @@
                 case 'mysql':
                     break;
                 case 'mongodb':
-                    return 'mongodb://' + this.host + ':' + this.port + '/' + this.database;
+                    // mongodb://[username:password@]host1[:port1][,...hostN[:portN]][/[defaultauthdb][?options]]
+                    return 'mongodb://' + this.user + ':' + this.password + '@' + this.host + ':' + this.port + '/' + this.database + "?authSource=admin";
                     break;
             }
         }
@@ -105,18 +106,19 @@
 
     Mysql2Mongo.prototype.connectDestination = function (callback) {
         var cfg = this.config;
-
         var mongoClient = mongodb.MongoClient;
-        var format = require('util').format;
-
-        //var url = 'mongodb://' + cfg.host + ':' + cfg.port + '/' + cfg.database;
-
         var me = this;
-        mongoClient.connect(cfg.getConnectionString(), function (err, database) {
-            me.destDB = database;
-            callback.call(me, err);
-        });
-    }
+        var url = cfg.getConnectionString();
+
+        mongoClient.connect(url)
+            .then(client => {
+                me.destDB = client.db(cfg.database);
+                callback.call(me, null); // 连接成功，传递 null 表示没有错误
+            })
+            .catch(err => {
+                callback.call(me, err); // 连接失败，传递错误对象
+            });
+    };
 
     Mysql2Mongo.prototype.getSourceTables = function (callback) {
         if (this.srcDB == null) {
@@ -143,13 +145,13 @@
         console.log("Tables : ");
         var me = this;
         this.tables.forEach(function (table) {
-
             me.srcDB.query('SELECT * from ' + table, function (err, rec) {
                 me.destDB.collection(table).drop();
-                me.destDB.collection(table).insert(rec, function (err, records) {
-                    console.log('Migrated table : ' + table);
-                    _apply(callback, [table])
-                });
+                me.destDB.collection(table).insertMany(rec)
+                    .then(result => {
+                        console.log('Migrated table : ' + table);
+                        _apply(callback, [table])
+                    });
             });
         });
     };

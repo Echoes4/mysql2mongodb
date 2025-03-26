@@ -1,4 +1,4 @@
-var baseUrl = 'http://192.168.1.206:2000/';
+var baseUrl = 'http://localhost:2000/';
 
 function connectMysqlDB() {
     var host = $('#host').val();
