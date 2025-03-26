@@ -11,7 +11,7 @@ Prerequest :
 
 Used NPM Modules :
 
-1. mysql
+1. mysql2
 2. mongodb
 3. express
 4. ejs
